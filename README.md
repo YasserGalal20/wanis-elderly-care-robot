@@ -14,6 +14,7 @@ Graduation project. Two full hardware prototypes, ROS 2 Jazzy, built on hacked h
 - **Recovers when it loses them.** A four-stage recovery ladder: back up → scan in place → drive to frontier waypoints → re-acquire by appearance match.
 - **Detects falls** with a custom-trained YOLO model and raises an alert.
 - **Delivers medication** on a schedule via an ESP32 pill dispenser, interrupting whatever it was doing.
+- **Measures Biometrics** on a schedule via an ESP32 pill dispenser, interrupting whatever it was doing.
 - **Refuses to hit anything.** A safety node sits between every other node and the motors, and has final say.
 
 ## Demo
