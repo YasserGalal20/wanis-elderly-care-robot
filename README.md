@@ -1,6 +1,6 @@
 # Wanis — An Elderly-Care Companion Robot
 
-A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, and brings them their medication on schedule.
+A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, Measures their biometrics, and brings them their medication on schedule.
 
 Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked hoverboard motors.
 
