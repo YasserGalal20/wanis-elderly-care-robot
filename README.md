@@ -158,33 +158,10 @@ team members and are not in this repository — see the note above.)*
 ```
 src/person_follower/     person following, fall detection, safety guard
 src/wanis_bringup/       our launch files, Nav2/SLAM/EKF configs, URDF, scripts
-patches/                 our modifications to the upstream packages
 prototype_1/             first prototype: earlier follower, explorer, URDF, launch
 robot.repos              upstream dependencies, pinned to exact commits
-scripts/                 workspace setup and model download
 media/                   photos, diagrams and demo clips
 docs/                    build notes and design decisions
-```
-
-## Getting it running
-
-```bash
-# 1. reconstruct the workspace (clones upstream deps, applies our patches)
-./scripts/setup_workspace.sh ~/wanis_ws
-
-# 2. fetch model weights
-./scripts/download_models.sh
-
-# 3. build
-cd ~/wanis_ws && colcon build --symlink-install && source install/setup.bash
-```
-
-Then, on the robot and on the server respectively:
-
-```bash
-ros2 launch wanis_bringup hoverboard.launch.py         # Pi: motors, sensors, safety
-ros2 launch wanis_bringup hoverboard_server.launch.py  # server: perception, Nav2, SLAM
-ros2 run person_follower final_person_follower
 ```
 
 Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`, `torchreid`, `opencv-python`, `mediapipe`.
