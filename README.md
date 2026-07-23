@@ -246,8 +246,6 @@ This project integrates several open-source packages. They are dependencies, not
 | [ros2-mobile-sensor-bridge](https://github.com/VedantC2307/ros2-mobile-sensor-bridge) | Vedant Choudhary | Streams phone camera/IMU/GPS into ROS 2 over WebSocket — used in prototype 1 to prototype sensing without extra hardware |
 | [serial_motor_demo](https://github.com/joshnewans/serial_motor_demo), [ros_arduino_bridge](https://github.com/joshnewans/ros_arduino_bridge) | Josh Newans | Prototype 1 motor control |
 
-Our changes to these are in [`patches/`](patches/) rather than vendored copies, so it stays clear what is ours.
-
 Also uses [Ultralytics YOLO](https://github.com/ultralytics/ultralytics), [torchreid](https://github.com/KaiyangZhou/deep-person-reid) (OSNet), [MediaPipe](https://github.com/google-ai-edge/mediapipe), [Nav2](https://github.com/ros-navigation/navigation2), [slam_toolbox](https://github.com/SteveMacenski/slam_toolbox) and [robot_localization](https://github.com/cra-ros-pkg/robot_localization).
 
 ## Licence
