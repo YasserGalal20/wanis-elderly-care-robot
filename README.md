@@ -119,8 +119,7 @@ ANY_RECOVERY ──(signature match)──► LOCKED
 ANY ──(/pill_time)──► PILL_DELIVERY
 ```
 
-**Motion control.** Separate PID loops for angular (pixel error) and linear (depth error), with D-on-measurement, anti-windup, integral leak on sign flip, output low-pass and slew limiting. Forward speed is *scaled* continuously by heading error rather than gated — the robot never stutters between "turn" and "drive", it arcs. Hysteresis on the rotate-only threshold kills the chatter you get from a hard threshold.
-
+**Motion control.** Separate PID loops for angular (pixel error) and linear (depth error)
 ## The safety layer
 
 [`safety_guard_on_rpi.py`](src/person_follower/person_follower/safety_guard_on_rpi.py) is deliberately the dumbest node in the system, and it wins every argument.
