@@ -12,7 +12,7 @@ The catch is the stock controller runs locked firmware that only accepts balance
 
 ## Why the compute is split across two machines
 
-The perception stack runs YOLO11 segmentation plus an OSNet ReID embedding on every tracked person, every frame. That does not run in real time on a Raspberry Pi.
+The perception stack runs YOLO segmentation plus an OSNet ReID embedding on every tracked person, every frame. That does not run in real time on a Raspberry Pi.
 
 But the safety layer *must* keep running even when Wi-Fi drops. So the rule is: **anything that can stop the wheels lives on the robot.** The Pi runs sensor drivers, `ros2_control` and the safety guard. The laptop runs perception, Nav2 and the assistant. If the network dies, the robot stops safely instead of continuing on a stale command.
 
