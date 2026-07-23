@@ -38,7 +38,7 @@ Graduation project. Two full hardware prototypes, ROS 2 Jazzy on Ubuntu 24.04, b
 
 The chassis was modelled in CAD before anything was cut, then built to match.
 
-| Proposed model | Final design |
+| Proposed model | Final proposed design |
 |---|---|
 | ![Proposed CAD model](media/cad_proposed_model.jpg) | ![Finished CAD model](media/cad_finished_model.jpg) |
 
@@ -53,16 +53,11 @@ The chassis was modelled in CAD before anything was cut, then built to match.
 |---|---|
 | ![Frame before assembly](media/final_prebuild.jpg) | ![Mounting the drive](media/final_build_1.jpg) |
 | Frame before assembly | Mounting the drive |
-| ![Electronics layer](media/final_build_2.jpg) | ![Sensor mast](media/final_build_3.jpg) |
-| Electronics layer | Sensor mast |
+| ![Electronics layer](media/final_build_2.jpg) | ![Mounting sensors](media/final_build_3.jpg) |
+| Electronics layer | Mounting sensors |
 
 </details>
 
-The design brief was awkward: tall enough that a camera sees a standing person's
-upper body from a few metres away, low enough not to tip, wide enough to carry
-the pill dispenser and battery, and narrow enough for a domestic doorway. The
-sensor mast is the visible result — it keeps the Kinect at chest height while
-the mass stays low over the axle.
 
 ---
 
