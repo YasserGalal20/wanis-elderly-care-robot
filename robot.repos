@@ -1,0 +1,25 @@
+repositories:
+  src/hoverboard_ros2_control:
+    type: git
+    url: https://github.com/DataBot-Labs/hoverboard_ros2_control.git
+    version: 94d50b06e8bef4cd39f22e11ebdffd7cb4a48931
+  src/kinect2_ros2:
+    type: git
+    url: https://github.com/krepa098/kinect2_ros2
+    version: 3bc797480ba037e871ee7828175eff8d71966153
+  src/KinectV1-Ros2:
+    type: git
+    url: https://github.com/SriharshaShesham/KinectV1-Ros2.git
+    version: 589d8aabe83f71578205b01dcfe2294582deb8e4
+  src/bno08x-ros2-driver:
+    type: git
+    url: https://github.com/bnbhat/bno08x-ros2-driver.git
+    version: ccbcfe1d3dea08f8952a4fca85a40681363f6942
+  firmware/hoverboard-firmware-hack-FOC:
+    type: git
+    url: https://github.com/hoverboard-robotics/hoverboard-firmware-hack-FOC.git
+    version: 24955d63511e94472ebccb52a4d9700667b7b278
+  src/ros2-mobile-sensor-bridge:
+    type: git
+    url: https://github.com/VedantC2307/ros2-mobile-sensor-bridge.git
+    version: main

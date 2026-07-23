@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Kinect V2 — mounted to the right of Kinect V1 (y=-0.09 vs V1 at y=+0.09) -->
+
+  <joint name="kinect2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="kinect2_link"/>
+    <origin xyz="0.22 -0.15 0.348" rpy="0 0 0"/>
+  </joint>
+
+  <link name="kinect2_link">
+    <visual>
+      <geometry>
+        <!-- Kinect v2 bar shape: ~280mm wide, ~50mm tall, ~20mm deep -->
+        <box size="0.02 0.28 0.05"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <!-- Optical frames must match the frame_ids that kinect2_bridge stamps into
+       its image / camera_info headers (baseNameTF + _rgb_optical_frame and
+       _ir_optical_frame, see kinect2_definitions.h).  Publishing them here via
+       robot_state_publisher means depth_image_proc can find them in the TF tree
+       and produce correct point clouds, and the bridge's own 100 Hz static-TF
+       thread can be turned off (publish_tf:=false in the bridge launch). -->
+
+  <joint name="kinect2_rgb_optical_joint" type="fixed">
+    <parent link="kinect2_link"/>
+    <child link="kinect2_rgb_optical_frame"/>
+    <!-- Standard ROS optical frame: x-right, y-down, z-forward -->
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="kinect2_rgb_optical_frame"></link>
+
+  <!-- IR optical frame is only used by the SD/IR topics; for the QHD
+       pointcloud the depth is already registered to the RGB camera, so
+       co-locating IR with RGB optical is fine. -->
+  <joint name="kinect2_ir_optical_joint" type="fixed">
+    <parent link="kinect2_rgb_optical_frame"/>
+    <child link="kinect2_ir_optical_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="kinect2_ir_optical_frame"></link>
+
+  <gazebo reference="kinect2_link">
+    <sensor name="kinect2_rgbd" type="rgbd_camera">
+      <gz_frame_id>kinect2_rgb_optical_frame</gz_frame_id>
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <visualize>true</visualize>
+      <!-- Topics mirror kinect2_bridge qhd namespace -->
+      <topic>kinect2/qhd/image_color</topic>
+      <camera>
+        <camera_info_topic>kinect2/qhd/camera_info</camera_info_topic>
+        <!-- Kinect v2 horizontal FOV ≈ 84.1° -->
+        <horizontal_fov>1.4661</horizontal_fov>
+        <image>
+          <width>960</width>
+          <height>540</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.50</near>
+          <far>10.0</far>
+        </clip>
+        <depth_camera>
+          <clip>
+            <near>0.50</near>
+            <far>10.0</far>
+          </clip>
+        </depth_camera>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </camera>
+    </sensor>
+  </gazebo>
+
+</robot>

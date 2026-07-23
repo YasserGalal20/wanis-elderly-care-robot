@@ -1,0 +1,608 @@
+diff --git a/hoverboard_demo_bringup/CMakeLists.txt b/hoverboard_demo_bringup/CMakeLists.txt
+index 30e2cda..f6b7949 100644
+--- a/hoverboard_demo_bringup/CMakeLists.txt
++++ b/hoverboard_demo_bringup/CMakeLists.txt
+@@ -23,5 +23,11 @@ if(BUILD_TESTING)
+   ament_lint_auto_find_test_dependencies()
+ endif()
+ 
+-ament_auto_package(INSTALL_TO_SHARE config launch)
++install(PROGRAMS
++  scripts/time_sync.py
++  scripts/pointcloud_colorizer.py
++  DESTINATION lib/${PROJECT_NAME}
++)
++
++ament_auto_package(INSTALL_TO_SHARE config launch worlds)
+ 
+diff --git a/hoverboard_demo_bringup/config/hoverboard_controllers.yaml b/hoverboard_demo_bringup/config/hoverboard_controllers.yaml
+index 27a7fa9..d26857c 100644
+--- a/hoverboard_demo_bringup/config/hoverboard_controllers.yaml
++++ b/hoverboard_demo_bringup/config/hoverboard_controllers.yaml
+@@ -13,26 +13,26 @@ hoverboard_base_controller:
+     left_wheel_names: ["driving_wheel_front_left_joint", "driving_wheel_back_left_joint"]
+     right_wheel_names: ["driving_wheel_front_right_joint", "driving_wheel_back_right_joint"]
+ 
+-    wheel_separation: 0.22
++    wheel_separation: 0.565
+     #wheels_per_side: 1  # actually 2, but both are controlled by 1 sign
+-    wheel_radius: 0.08255 # 0.085
++    wheel_radius: 0.1 # 0.085
+ 
+     wheel_separation_multiplier: 1.0
+     left_wheel_radius_multiplier: 1.0
+     right_wheel_radius_multiplier: 1.0
+ 
+-    publish_rate: 100.0
++    publish_rate: 50.0
+     odom_frame_id: odom
+-    base_frame_id: base_link
+-    pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+-    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
++    base_frame_id: base_footprint
++    pose_covariance_diagonal : [0.05, 0.05, 1e-6, 1e-6, 1e-6, 0.1]
++    twist_covariance_diagonal: [0.1,  1e-6, 1e-6, 1e-6, 1e-6, 0.1]
+ 
+     open_loop: false
+-    enable_odom_tf: true
++    enable_odom_tf: false  # EKF publishes odom->base_footprint; having both causes TF races and jumps
+ 
+     cmd_vel_timeout: 0.5
+     #publish_limited_velocity: true
+-    use_stamped_vel: false
++    #use_stamped_vel: false
+     #velocity_rolling_window_size: 10
+ 
+     # Velocity and acceleration limits
+@@ -43,8 +43,9 @@ hoverboard_base_controller:
+     linear.x.max_velocity: 1.0
+     linear.x.min_velocity: -1.0
+     linear.x.max_acceleration: 1.0
+-    linear.x.max_jerk: 0.0
+-    linear.x.min_jerk: 0.0
++    #linear.x.max_jerk: 0.0
++    #linear.x.min_jerk: 0.0
++    linear.x.jerk_limit: 0
+ 
+     angular.z.has_velocity_limits: true
+     angular.z.has_acceleration_limits: true
+@@ -55,3 +56,4 @@ hoverboard_base_controller:
+     angular.z.min_acceleration: -1.0
+     angular.z.max_jerk: 0.0
+     angular.z.min_jerk: 0.0
++    angular.z.jerk_limit: 0
+diff --git a/hoverboard_demo_bringup/launch/hoverboard.launch.py b/hoverboard_demo_bringup/launch/hoverboard.launch.py
+index 9424d50..bede7f1 100644
+--- a/hoverboard_demo_bringup/launch/hoverboard.launch.py
++++ b/hoverboard_demo_bringup/launch/hoverboard.launch.py
+@@ -13,25 +13,55 @@
+ # limitations under the License.
+ 
+ from launch import LaunchDescription
++from launch.actions import DeclareLaunchArgument
++from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+ from launch_ros.actions import Node
+-from launch.substitutions import Command, FindExecutable, PathJoinSubstitution
+ from launch_ros.substitutions import FindPackageShare
++from ament_index_python.packages import get_package_share_directory
++import os
++from launch_ros.parameter_descriptions import ParameterValue
+ 
+ def generate_launch_description():
+ 
+-    robot_description_content = Command(
+-        [
+-            PathJoinSubstitution([FindExecutable(name="xacro")]),
+-            " ",
+-            PathJoinSubstitution(
+-                [
+-                    FindPackageShare("hoverboard_demo_description"), "urdf", "hoverboard_description.xacro"
+-                ]
+-            ),
+-        ]
++    # safety_guard pcl_topic — overridden by Flask when launching heavy sequence:
++    #   lite mode: /kinect/points   (Kinect v1)
++    #   heavy mode: /kinect2/points (Kinect v2, server-side pointcloud)
++    pcl_topic_arg = DeclareLaunchArgument(
++        "pcl_topic",
++        default_value="/kinect/points",
++        description="PointCloud2 topic for safety_guard obstacle detection",
+     )
++    pcl_topic = LaunchConfiguration("pcl_topic")
++
++    # robot_description_content = Command(
++    #     [
++    #         PathJoinSubstitution([FindExecutable(name="xacro")]),
++    #         " ",
++    #         PathJoinSubstitution(
++    #             [
++    #                 FindPackageShare("hoverboard_demo_description"), "urdf", "hoverboard_description.xacro"
++    #             ]
++    #         ),
++    #     ]
++    # )
++
++    # robot_description = {"robot_description": robot_description_content}
++
++    # ── Robot description (sim variant) ──
++    robot_description_content = Command([
++        PathJoinSubstitution([FindExecutable(name="xacro")]),
++        " ",
++        PathJoinSubstitution([
++            FindPackageShare("hoverboard_demo_description"),
++            "urdf", "hoverboard_description.xacro",
++        ]),
++    ])
++
++    # WRAP IT HERE:
++    robot_description = {
++        "robot_description": ParameterValue(robot_description_content, value_type=str)
++    }
+ 
+-    robot_description = {"robot_description": robot_description_content}
+ 
+     robot_controllers = PathJoinSubstitution(
+         [
+@@ -45,11 +75,11 @@ def generate_launch_description():
+         ]
+     )
+ 
+-    teleop_twist_joy_config_file = PathJoinSubstitution(
+-        [
+-            FindPackageShare("hoverboard_demo_bringup"), "config", "ps4.config.yaml",
+-        ]
+-    )
++    # teleop_twist_joy_config_file = PathJoinSubstitution(
++    #     [
++    #         FindPackageShare("hoverboard_demo_bringup"), "config", "ps4.config.yaml",
++    #     ]
++    # )
+ 
+     control_node = Node(
+         package="controller_manager",
+@@ -84,30 +114,117 @@ def generate_launch_description():
+         arguments=["-d", rviz_config_file],
+     )
+ 
+-    joy_node = Node(
+-        package='joy', executable='joy_node', name='joy_node',
+-        parameters=[{
+-            'deadzone': 0.05,
+-            'autorepeat_rate': 30.0
+-        }],
++    # joy_node = Node(
++    #     package='joy', executable='joy_node', name='joy_node',
++    #     parameters=[{
++    #         'deadzone': 0.05,
++    #         'autorepeat_rate': 30.0
++    #     }],
++    # )
++
++    # teleop_twist_joy_node = Node(
++    #     package='teleop_twist_joy',
++    #     executable='teleop_node',
++    #     name='teleop_twist_joy_node',
++    #     parameters=[teleop_twist_joy_config_file],
++    #     remappings=[
++    #         ('/cmd_vel', '/hoverboard_base_controller/cmd_vel_unstamped'),
++    #     ]
++    # )
++
++    twist_stamper = Node(
++            package='twist_stamper',
++            executable='twist_stamper',
++            parameters=[{'use_sim_time': False}],
++            remappings=[
++            ('cmd_vel_in', 'cmd_vel'),
++            ('cmd_vel_out', 'hoverboard_base_controller/cmd_vel')]
+     )
+ 
+-    teleop_twist_joy_node = Node(
+-        package='teleop_twist_joy',
+-        executable='teleop_node',
+-        name='teleop_twist_joy_node',
+-        parameters=[teleop_twist_joy_config_file],
+-        remappings=[
+-            ('/cmd_vel', '/hoverboard_base_controller/cmd_vel_unstamped'),
++        # Web Video Server — port 8080
++    web_server = Node(
++            package='web_video_server',
++            executable='web_video_server',
++            name='web_video_server',
++            parameters=[{
++                'port': 8081,
++                'address': '0.0.0.0',
++            }]
++        )
++
++
++
++    twist_mux_params = PathJoinSubstitution(
++        [
++            FindPackageShare("hoverboard_demo_bringup"), "config", "twist_mux.yaml",
+         ]
+     )
++    twist_mux = Node(
++            package="twist_mux",
++            executable="twist_mux",
++            parameters=[twist_mux_params,{'use_stamped': True}],
++            remappings=[('/cmd_vel_out','/hoverboard_base_controller/cmd_vel_unstamped')]
++        )
++
++    
++
++           
++    ekf_se  = Node(
++            package='robot_localization',
++            executable='ekf_node',
++            name='ekf_filter_node',
++            output='screen',
++            parameters=[os.path.join(get_package_share_directory("hoverboard_demo_bringup"), 'config', 'ekf.yaml')],
++           )
++
++
++
++    ukf_se = Node(
++            package='robot_localization',
++            executable='ukf_node',
++            name='ukf_filter_node',
++            output='screen',
++            parameters=[os.path.join(get_package_share_directory("hoverboard_demo_bringup"), 'config', 'ukf.yaml')],
++           )
++
++
++    imu_config = os.path.join(
++        get_package_share_directory('bno08x_driver'), 
++        'config',
++        'bno085_i2c.yaml'
++    )
++
++    imu = Node(
++            package='bno08x_driver',
++            executable='bno08x_driver',
++            name='bno08x_driver',
++            output='screen',
++            parameters=[imu_config]
++        )
++
++    safety_guard = Node(
++        package="person_follower",
++        executable="safety",
++        name="safety_guard",
++        output="screen",
++        parameters=[{
++            "pcl_topic":   pcl_topic,
++            "pcl_enabled": True,
++            "stair_detect_enabled": True,
++        }],
++    )
+ 
+     return LaunchDescription([
++        pcl_topic_arg,
+         control_node,
+         robot_state_pub_node,
+         joint_state_broadcaster_spawner,
+         robot_controller_spawner,
+-        rviz_node,
+-        # joy_node,
+-        # teleop_twist_joy_node,
++        #rviz_node,
++        twist_stamper,
++        web_server,
++        ekf_se,
++        imu,
++        safety_guard,
++        #ukf_se
+     ])
+diff --git a/hoverboard_demo_bringup/package.xml b/hoverboard_demo_bringup/package.xml
+index 13d4f17..bebbb43 100644
+--- a/hoverboard_demo_bringup/package.xml
++++ b/hoverboard_demo_bringup/package.xml
+@@ -17,6 +17,13 @@
+   <exec_depend>teleop_twist_joy</exec_depend>
+ 
+   <exec_depend>xacro</exec_depend>
++  <exec_depend>ros_gz_sim</exec_depend>
++  <exec_depend>ros_gz_bridge</exec_depend>
++  <exec_depend>gz_ros2_control</exec_depend>
++  <exec_depend>robot_localization</exec_depend>
++  <exec_depend>slam_toolbox</exec_depend>
++  <exec_depend>nav2_bringup</exec_depend>
++  <exec_depend>twist_stamper</exec_depend>
+ 
+   <test_depend>ament_lint_auto</test_depend>
+   <test_depend>ament_lint_common</test_depend>
+diff --git a/hoverboard_demo_description/CMakeLists.txt b/hoverboard_demo_description/CMakeLists.txt
+index c770631..841f669 100644
+--- a/hoverboard_demo_description/CMakeLists.txt
++++ b/hoverboard_demo_description/CMakeLists.txt
+@@ -23,4 +23,4 @@ if(BUILD_TESTING)
+   ament_lint_auto_find_test_dependencies()
+ endif()
+ 
+-ament_auto_package(INSTALL_TO_SHARE urdf rviz meshes)
++ament_auto_package(INSTALL_TO_SHARE urdf rviz meshes models)
+diff --git a/hoverboard_demo_description/meshes/plate.stl b/hoverboard_demo_description/meshes/plate.stl
+old mode 100644
+new mode 100755
+diff --git a/hoverboard_demo_description/urdf/hoverboard_description.xacro b/hoverboard_demo_description/urdf/hoverboard_description.xacro
+old mode 100644
+new mode 100755
+index 35ae527..0044f7a
+--- a/hoverboard_demo_description/urdf/hoverboard_description.xacro
++++ b/hoverboard_demo_description/urdf/hoverboard_description.xacro
+@@ -6,30 +6,67 @@
+     <xacro:include filename="wheels.xacro" />
+     <xacro:include filename="ros2_control.xacro" />
+ 
+-    <xacro:property name="plate_radius" value="0.37" />
++
++    <xacro:property name="plate_radius" value="0.47" />
+     <xacro:property name="plate_height" value="0.01" />
+ 
+     <xacro:property name="chassis_weight" value="1.0" />
+ 
+-    <xacro:property name="driving_wheel_diameter" value="0.165" />
+-    <xacro:property name="driving_wheel_thickness" value="0.045" />
+-    <xacro:property name="driving_wheel_weight" value="2.2" />
+-    <xacro:property name="driving_wheel_base_gap" value="0.01" />
++    <xacro:property name="driving_wheel_diameter" value="0.20" />
++    <xacro:property name="driving_wheel_thickness" value="0.09" />
++    <xacro:property name="driving_wheel_weight" value="12.5" />
++    <xacro:property name="driving_wheel_base_gap" value="0.2" />
+ 
+     <xacro:property name="caster_wheel_diameter" value="0.09" />
+     <xacro:property name="caster_wheel_weight" value="0.1" />
+ 
+-    <link name="base_link">
++    <material name ="white">
++        <color rgba ="1 1 1 1" />
++    </material>
++
++
++   <link name="base_footprint">
++
+     </link>
+ 
+-    <link name="plate">
++
++    <joint name="base_footprint_joint" type="fixed">
++        <parent link="base_footprint" />
++        <child link="base_link"  />
++        <origin xyz ="0 0 0" rpy="0 0 0" />
++    </joint>
++
++
++
++    <link name="base_link">
++
+         <visual>
+-            <origin xyz="0 0 0" rpy="0 0 -${pi/2}"/>
++            <origin xyz = "0 0 0.125"  />
+             <geometry>
+-                <mesh filename="package://hoverboard_demo_description/meshes/plate.stl" scale="0.001 0.001 0.001"/>
++                <box size="0.80 0.41 0.38" />
+             </geometry>
+-            <material name="gray"/>
++            <material name="white" />
++
+         </visual>
++
++
++        <collision>
++            <origin xyz = "0 0 0.125"  />
++            <geometry>
++                <box size="0.80 0.41 0.38" />
++            </geometry>
++        </collision>
++        
++        <xacro:inertial_box mass="30.0" x="0.80" y="0.41" z="0.38">
++            <origin xyz="0 0 0.125" rpy="0 0 0"/>
++        </xacro:inertial_box>
++
++
++    </link>
++
++
++
++    <link name="plate">
+         <collision>
+             <origin xyz="0 0 0" rpy="0 0 -${pi/2}"/>
+             <geometry>
+@@ -45,15 +82,24 @@
+         <child link="plate" />
+     </joint>
+ 
+-    <xacro:driving_wheel suffix="front_left" reflect="1" position="0.3"/>
+-    <xacro:driving_wheel suffix="front_right" reflect="-1" position="0.3"/>
++    <xacro:driving_wheel suffix="front_left" reflect="1" position="0.28"/>
++    <xacro:driving_wheel suffix="front_right" reflect="-1" position="0.28"/>
+ 
+-    <xacro:driving_wheel suffix="back_left" reflect="1" position="-0.3"/>
+-    <xacro:driving_wheel suffix="back_right" reflect="-1" position="-0.3"/>
++    <xacro:driving_wheel suffix="back_left" reflect="1" position="-0.28"/>
++    <xacro:driving_wheel suffix="back_right" reflect="-1" position="-0.28"/>
+ 
+     <!-- <xacro:caster_wheel suffix="front" reflect="1" />
+     <xacro:caster_wheel suffix="back" reflect="-1" /> -->
+ 
+     <xacro:hoverboard_ros2_control name="hoverboard" />
++    <xacro:include filename="camera.xacro" />
++    <xacro:include filename="depth_camera.xacro" />
++    <xacro:include filename="kinect2.xacro" />
++    <xacro:include filename="rplidar.xacro" />
++    <xacro:include filename="imu.xacro" />
++
++
++
++
+ 
+ </robot>
+diff --git a/hoverboard_demo_description/urdf/macros.xacro b/hoverboard_demo_description/urdf/macros.xacro
+index 837e6e4..2eaab78 100644
+--- a/hoverboard_demo_description/urdf/macros.xacro
++++ b/hoverboard_demo_description/urdf/macros.xacro
+@@ -33,4 +33,28 @@
+         </inertial>
+     </xacro:macro>
+ 
++    <xacro:macro name="inertial_sphere" params="mass radius *origin">
++        <inertial>
++            <xacro:insert_block name="origin"/>
++            <mass value="${mass}"/>
++            <inertia ixx="${(2/5) * mass * (radius*radius)}" ixy="0.0" ixz="0.0" iyy="${(2/5) * mass * (radius*radius)}" iyz="0.0" izz="${(2/5) * mass * (radius*radius)}"/>
++        </inertial>
++    </xacro:macro>
++
++    <xacro:macro name="inertial_cylinder" params="mass length radius *origin">
++        <inertial>
++            <xacro:insert_block name="origin"/>
++            <mass value="${mass}"/>
++            <inertia ixx="${(1/12) * mass * (3*radius*radius + length*length)}" ixy="0.0" ixz="0.0" iyy="${(1/12) * mass * (3*radius*radius + length*length)}" iyz="0.0" izz="${(1/2) * mass * (radius*radius)}"/>
++        </inertial>
++    </xacro:macro>
++
++    <xacro:macro name="inertial_box" params="mass x y z *origin">
++        <inertial>
++            <xacro:insert_block name="origin"/>
++            <mass value="${mass}"/>
++            <inertia ixx="${(1/12) * mass * (y*y+z*z)}" ixy="0.0" ixz="0.0" iyy="${(1/12) * mass * (x*x+z*z)}" iyz="0.0" izz="${(1/12) * mass * (x*x+y*y)}"/>
++        </inertial>
++    </xacro:macro>
++
+ </robot>
+diff --git a/hoverboard_demo_description/urdf/ros2_control.xacro b/hoverboard_demo_description/urdf/ros2_control.xacro
+index a05c5ad..01acee9 100644
+--- a/hoverboard_demo_description/urdf/ros2_control.xacro
++++ b/hoverboard_demo_description/urdf/ros2_control.xacro
+@@ -9,7 +9,7 @@
+         <param name="left_wheel_joint_name">driving_wheel_front_left_joint</param>
+         <param name="right_wheel_joint_name">driving_wheel_front_right_joint</param>
+         <param name="loop_rate">50</param>
+-        <param name="device">/dev/ttyUSB0</param>
++        <param name="device">/dev/hoverboard_front</param>
+         <param name="baud_rate">115200</param>
+         <param name="timeout">1000</param>
+         <param name="encoder_ticks_per_revolution">90</param>
+@@ -32,7 +32,7 @@
+         <param name="left_wheel_joint_name">driving_wheel_back_left_joint</param>
+         <param name="right_wheel_joint_name">driving_wheel_back_right_joint</param>
+         <param name="loop_rate">50</param>
+-        <param name="device">/dev/ttyUSB1</param>
++        <param name="device">/dev/hoverboard_back</param>
+         <param name="baud_rate">115200</param>
+         <param name="timeout">1000</param>
+         <param name="encoder_ticks_per_revolution">90</param>
+diff --git a/hoverboard_demo_description/urdf/wheels.xacro b/hoverboard_demo_description/urdf/wheels.xacro
+index ce5d30a..0bcf8bc 100644
+--- a/hoverboard_demo_description/urdf/wheels.xacro
++++ b/hoverboard_demo_description/urdf/wheels.xacro
+@@ -25,7 +25,7 @@
+             <axis xyz="0 1 0" rpy="0 0 0" />
+             <parent link="base_link"/>
+             <child link="driving_wheel_${suffix}"/>
+-            <origin xyz="${position} ${(plate_radius+driving_wheel_thickness+driving_wheel_base_gap-0.195)/2*reflect} 0.038" rpy="0 0 0"/>
++            <origin xyz="${position} ${(plate_radius+driving_wheel_thickness+driving_wheel_base_gap-0.195)/2*reflect} -0.08" rpy="0 0 0"/>
+         </joint>
+ 
+         <gazebo reference="driving_wheel_${suffix}">
+diff --git a/hoverboard_hardware_interface/CMakeLists.txt b/hoverboard_hardware_interface/CMakeLists.txt
+index 29e4064..12edb54 100644
+--- a/hoverboard_hardware_interface/CMakeLists.txt
++++ b/hoverboard_hardware_interface/CMakeLists.txt
+@@ -44,4 +44,4 @@ if(BUILD_TESTING)
+   ament_lint_auto_find_test_dependencies()
+ endif()
+ 
+-ament_auto_package()
++ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR)
+diff --git a/hoverboard_hardware_interface/include/hoverboard_hardware_interface/hoverboard_hardware_interface.hpp b/hoverboard_hardware_interface/include/hoverboard_hardware_interface/hoverboard_hardware_interface.hpp
+index a62fd53..566576e 100644
+--- a/hoverboard_hardware_interface/include/hoverboard_hardware_interface/hoverboard_hardware_interface.hpp
++++ b/hoverboard_hardware_interface/include/hoverboard_hardware_interface/hoverboard_hardware_interface.hpp
+@@ -18,6 +18,7 @@
+ 
+ #include "rclcpp/rclcpp.hpp"
+ #include "hardware_interface/system_interface.hpp"
++#include "hardware_interface/types/hardware_component_interface_params.hpp"
+ #include "hardware_interface/types/hardware_interface_type_values.hpp"
+ #include "pluginlib/class_list_macros.hpp"
+ 
+@@ -47,7 +48,7 @@ namespace hoverboard_hardware_interface
+     public:
+         RCLCPP_SHARED_PTR_DEFINITIONS(HoverboardHardwareInterface)
+ 
+-        hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo &) override;
++        hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareComponentInterfaceParams &) override;
+ 
+         hardware_interface::CallbackReturn on_configure(const rclcpp_lifecycle::State &) override;
+ 
+diff --git a/hoverboard_hardware_interface/src/hoverboard_hardware_interface.cpp b/hoverboard_hardware_interface/src/hoverboard_hardware_interface.cpp
+index c8bd650..8d47735 100644
+--- a/hoverboard_hardware_interface/src/hoverboard_hardware_interface.cpp
++++ b/hoverboard_hardware_interface/src/hoverboard_hardware_interface.cpp
+@@ -16,12 +16,14 @@
+ 
+ namespace hoverboard_hardware_interface
+ {
+-    hardware_interface::CallbackReturn HoverboardHardwareInterface::on_init(const hardware_interface::HardwareInfo & info)
++    hardware_interface::CallbackReturn HoverboardHardwareInterface::on_init(const hardware_interface::HardwareComponentInterfaceParams & params)
+     {
+-        if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS) {
++        if (hardware_interface::SystemInterface::on_init(params) != CallbackReturn::SUCCESS) {
+             return hardware_interface::CallbackReturn::ERROR;
+         }
+ 
++        const auto & info = params.hardware_info;
++
+         hardwareConfig.leftWheelJointName = info.hardware_parameters.at("left_wheel_joint_name");
+         hardwareConfig.rightWheelJointName = info.hardware_parameters.at("right_wheel_joint_name");
+         hardwareConfig.loopRate = std::stof(info.hardware_parameters.at("loop_rate"));
+@@ -176,10 +178,13 @@ namespace hoverboard_hardware_interface
+     {
+         MotorWheelDriveControl motorWheelDriveControl;
+ 
+-        const double speed = ((leftWheel.command / 0.10472) + (rightWheel.command / 0.10472)) / 2.0;
+-        const double steer = ((leftWheel.command / 0.10472) - speed) * 2.0;
++        // Convert rad/s to RPM: 1 rad/s = 60/(2*pi) RPM ≈ 9.5493 RPM
++        constexpr double RAD_S_TO_RPM = 60.0 / (2.0 * M_PI);  // ~9.5493
++        const double leftRPM  = leftWheel.command * RAD_S_TO_RPM;
++        const double rightRPM = rightWheel.command * RAD_S_TO_RPM;
+ 
+-        // TODO: radius should be read from the urdf file, check calculations
++        const double speed = (leftRPM + rightRPM) / 2.0;
++        const double steer = (leftRPM - speed) * 2.0;
+         motorWheelDriveControl.speed = (int16_t) (speed);
+         motorWheelDriveControl.steer = (int16_t) (steer);
+         motorWheelDriveControl.checksum = (uint16_t)(motorWheelDriveControl.head ^ motorWheelDriveControl.steer ^ motorWheelDriveControl.speed);
+diff --git a/hoverboard_hardware_interface/src/serial_port_service.cpp b/hoverboard_hardware_interface/src/serial_port_service.cpp
+index 4d03558..aa04b5c 100644
+--- a/hoverboard_hardware_interface/src/serial_port_service.cpp
++++ b/hoverboard_hardware_interface/src/serial_port_service.cpp
+@@ -16,7 +16,7 @@
+ 
+ using namespace hoverboard_hardware_interface;
+ 
+-bool SerialPortService::connect(const std::string &serial_device, int baud_rate, int timeout)
++bool SerialPortService::connect(const std::string &serial_device, int baud_rate, int /*timeout*/)
+ {
+     boost::system::error_code ec;
+ 
+@@ -30,7 +30,7 @@ bool SerialPortService::connect(const std::string &serial_device, int baud_rate,
+ 
+     if (ec) {
+         RCLCPP_ERROR(rclcpp::get_logger("SerialPortService"), "Connection to the %s failed..., error: %s",
+-            serial_device, ec.message().c_str());
++            serial_device.c_str(), ec.message().c_str());
+         return false;
+     }
+ 
+@@ -110,7 +110,7 @@ void SerialPortService::asyncRead()
+                     boost::asio::placeholders::bytes_transferred));
+ }
+ 
+-void SerialPortService::onReceive(const boost::system::error_code& ec, size_t bytes_transferred)
++void SerialPortService::onReceive(const boost::system::error_code& /*ec*/, size_t /*bytes_transferred*/)
+ {
+     RCLCPP_INFO(rclcpp::get_logger("SerialPortService"), "onReceive async event...");
+ 

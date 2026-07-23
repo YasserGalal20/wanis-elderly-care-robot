@@ -1,0 +1,376 @@
+<?xml version="1.0"?>
+
+<robot name="hoverboard_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <xacro:include filename="materials.xacro" />
+    <xacro:include filename="macros.xacro" />
+    <xacro:include filename="wheels.xacro" />
+    <xacro:include filename="ros2_control_sim.xacro" />
+
+    <xacro:property name="plate_radius" value="0.47" />
+    <xacro:property name="plate_height" value="0.01" />
+
+    <xacro:property name="chassis_weight" value="1.0" />
+
+    <xacro:property name="driving_wheel_diameter" value="0.20" />
+    <xacro:property name="driving_wheel_thickness" value="0.09" />
+    <xacro:property name="driving_wheel_weight" value="12.5" />
+    <xacro:property name="driving_wheel_base_gap" value="0.2" />
+
+    <xacro:property name="caster_wheel_diameter" value="0.09" />
+    <xacro:property name="caster_wheel_weight" value="0.1" />
+
+    <material name="white">
+        <color rgba="1 1 1 1" />
+    </material>
+
+    <link name="base_footprint">
+    </link>
+
+    <joint name="base_footprint_joint" type="fixed">
+        <parent link="base_footprint" />
+        <child link="base_link" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <link name="base_link">
+        <visual>
+            <origin xyz="0 0 0.125" />
+            <geometry>
+                <box size="0.80 0.41 0.38" />
+            </geometry>
+            <material name="white" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0.125" />
+            <geometry>
+                <box size="0.80 0.41 0.38" />
+            </geometry>
+        </collision>
+        <xacro:inertial_box mass="30.0" x="0.80" y="0.41" z="0.38">
+            <origin xyz="0 0 0.125" rpy="0 0 0"/>
+        </xacro:inertial_box>
+    </link>
+
+    <gazebo reference="base_link">
+        <material>Gazebo/White</material>
+    </gazebo>
+
+    <link name="plate">
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 -${pi/2}"/>
+            <geometry>
+                <cylinder radius="${plate_radius}" length="${plate_height}"/>
+            </geometry>
+        </collision>
+        <xacro:cylinder_inertia m="0.5" r="${plate_radius}" h="${plate_height}" roll="${pi/2}"/>
+    </link>
+
+    <joint name="base_link_plate_joint" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="plate" />
+    </joint>
+
+    <xacro:driving_wheel suffix="front_left" reflect="1" position="0.28"/>
+    <xacro:driving_wheel suffix="front_right" reflect="-1" position="0.28"/>
+    <xacro:driving_wheel suffix="back_left" reflect="1" position="-0.28"/>
+    <xacro:driving_wheel suffix="back_right" reflect="-1" position="-0.28"/>
+
+    <!-- Sim ros2_control (gz_ros2_control instead of hoverboard hardware) -->
+    <xacro:hoverboard_ros2_control_sim name="hoverboard" />
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <!-- Camera (same link structure, Gazebo sensors enabled) -->
+    <!-- ════════════════════════════════════════════════════ -->
+      <joint name="camera_joint" type="fixed">
+
+        <parent link="base_link"/>
+        <child link="camera_link"/>
+        <origin xyz="0.16 0.09 0.348" rpy="0 0 0"/>
+
+    </joint>
+
+    <link name="camera_link">
+                <visual>
+            <geometry>
+                <box size="0.038 0.28 0.063" />
+            </geometry>
+
+            <material name="black" />
+        </visual>
+
+
+    </link>
+
+
+    <joint name="camera_optical_joint" type="fixed">
+        <parent link="camera_link"/>
+        <child link="camera_link_optical"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+
+    <link name="camera_link_optical"></link>
+
+
+
+    <gazebo reference="camera_link">
+        <sensor name="kinect_rgbd" type="rgbd_camera">
+            <gz_frame_id>camera_link_optical</gz_frame_id>
+            <always_on>1</always_on>
+            <update_rate>15</update_rate>
+            <visualize>true</visualize>
+            <topic>kinect</topic>
+            <camera>
+                <camera_info_topic>kinect/camera_info</camera_info_topic>
+                <horizontal_fov>1.22173</horizontal_fov>
+                <image>
+                    <width>640</width>
+                    <height>480</height>
+                    <format>R8G8B8</format>
+                </image>
+                <clip>
+                    <near>0.30</near>
+                    <far>8.0</far>
+                </clip>
+                <depth_camera>
+                    <clip>
+                        <near>0.30</near>
+                        <far>6.0</far>
+                    </clip>
+                </depth_camera>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.01</stddev>
+                </noise>
+            </camera>
+        </sensor>
+    </gazebo>
+
+
+
+
+
+    <joint name="fall_camera_joint" type="fixed">
+
+        <parent link="base_link"/>
+        <child link="fall_camera_link"/>
+        <origin xyz="0.16 0.16 0.395" rpy="0 0 0"/>
+
+    </joint>
+
+    <link name="fall_camera_link">
+                <visual>
+            <geometry>
+                <box size="0.07 0.09 0.03" />
+            </geometry>
+
+            <material name="black" />
+        </visual>
+
+
+    </link>
+
+
+    <joint name="fall_camera_optical_joint" type="fixed">
+        <parent link="fall_camera_link"/>
+        <child link="fall_camera_link_optical"/>
+        <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+
+
+    <link name="fall_camera_link_optical"></link>
+
+    <gazebo reference="fall_camera_link">
+        <material>Gazebo/Black</material>
+
+        <sensor name="camera" type="camera">
+            <pose> 0 0 0 0 0 0 </pose>
+            <visualize>true</visualize>
+            <update_rate>10</update_rate>
+            <camera>
+                <camera_info_topic>camera/camera_info</camera_info_topic>
+                <horizontal_fov>1.36136</horizontal_fov>
+                <image>
+                    <format>R8G8B8</format>
+                    <width>640</width>
+                    <height>480</height>
+                </image>
+                <clip>
+                    <near>0.05</near>
+                    <far>8.0</far>
+                </clip>
+            </camera>
+            <topic>camera/image_raw</topic>
+            <gz_frame_id>fall_camera_link_optical</gz_frame_id>
+        </sensor>
+    </gazebo>
+
+
+
+
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <!-- Kinect V2 — right side (y=-0.09), mirrors Kinect V1 -->
+    <!-- topic prefix: kinect2  resolution: 960x540          -->
+    <!-- ════════════════════════════════════════════════════ -->
+    <joint name="kinect2_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="kinect2_link"/>
+        <origin xyz="0.22 -0.15 0.348" rpy="0 0 0"/>
+    </joint>
+
+    <link name="kinect2_link">
+        <visual>
+            <geometry>
+                <box size="0.038 0.28 0.063"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <joint name="kinect2_optical_joint" type="fixed">
+        <parent link="kinect2_link"/>
+        <child link="kinect2_link_optical"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="kinect2_link_optical"></link>
+
+    <gazebo reference="kinect2_link">
+        <sensor name="kinect2_rgbd" type="rgbd_camera">
+            <gz_frame_id>kinect2_link_optical</gz_frame_id>
+            <always_on>1</always_on>
+            <update_rate>15</update_rate>
+            <visualize>true</visualize>
+            <topic>kinect2</topic>
+            <camera>
+                <camera_info_topic>kinect2/camera_info</camera_info_topic>
+                <horizontal_fov>1.46780</horizontal_fov>
+                <image>
+                    <width>960</width>
+                    <height>540</height>
+                    <format>R8G8B8</format>
+                </image>
+                <clip>
+                    <near>0.50</near>
+                    <far>10.0</far>
+                </clip>
+                <depth_camera>
+                    <clip>
+                        <near>0.50</near>
+                        <far>10.0</far>
+                    </clip>
+                </depth_camera>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.005</stddev>
+                </noise>
+            </camera>
+        </sensor>
+    </gazebo>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <!-- RPLidar (Gazebo GPU lidar sensor enabled)           -->
+    <!-- ════════════════════════════════════════════════════ -->
+    <joint name="laser_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="laser_frame"/>
+        <origin xyz="0 0 0.47" rpy="0 0 0"/>
+    </joint>
+
+    <link name="laser_frame">
+        <visual>
+            <geometry>
+                <cylinder radius="0.035" length="0.04"/>
+            </geometry>
+            <material name="black" />
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder radius="0.035" length="0.04"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_cylinder mass="0.1" length="0.04" radius="0.035">
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+    <gazebo reference="laser_frame">
+        <material>Gazebo/Black</material>
+        <sensor name="laser" type="gpu_lidar">
+            <pose>0 0 0 0 0 0</pose>
+            <visualize>true</visualize>
+            <update_rate>10</update_rate>
+            <lidar>
+                <scan>
+                    <horizontal>
+                        <samples>360</samples>
+                        <min_angle>-3.14159</min_angle>
+                        <max_angle>3.14159</max_angle>
+                    </horizontal>
+                </scan>
+                <range>
+                    <min>0.15</min>
+                    <max>6.0</max>
+                </range>
+            </lidar>
+            <topic>scan</topic>
+            <gz_frame_id>laser_frame</gz_frame_id>
+        </sensor>
+    </gazebo>
+
+    <!-- ════════════════════════════════════════════════════ -->
+    <!-- IMU (Gazebo IMU sensor enabled)                     -->
+    <!-- ════════════════════════════════════════════════════ -->
+    <joint name="imu_joint" type="fixed">
+        <axis xyz="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="imu_frame"/>
+        <origin xyz="0 0 0.35" rpy="0 0 0"/>
+    </joint>
+
+    <link name="imu_frame">
+        <inertial>
+            <mass value="0.001"/>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.0001"/>
+        </inertial>
+        <visual>
+            <geometry>
+                <box size="0.01 0.01 0.01"/>
+            </geometry>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="0.01 0.01 0.01"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <gazebo reference="imu_frame">
+        <sensor name="imu_sensor" type="imu">
+            <always_on>true</always_on>
+            <update_rate>50</update_rate>
+            <visualize>true</visualize>
+            <imu>
+                <angular_velocity>
+                    <x><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></x>
+                    <y><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></y>
+                    <z><noise type="gaussian"><mean>0.0</mean><stddev>2e-4</stddev></noise></z>
+                </angular_velocity>
+                <linear_acceleration>
+                    <x><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></x>
+                    <y><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></y>
+                    <z><noise type="gaussian"><mean>0.0</mean><stddev>1.7e-2</stddev></noise></z>
+                </linear_acceleration>
+            </imu>
+            <topic>/imu</topic>
+            <gz_frame_id>imu_frame</gz_frame_id>
+        </sensor>
+    </gazebo>
+
+</robot>

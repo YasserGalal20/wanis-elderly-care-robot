@@ -1,0 +1,131 @@
+diff --git a/kinect2_bridge/CMakeLists.txt b/kinect2_bridge/CMakeLists.txt
+index 4c7c041..45dfd6a 100644
+--- a/kinect2_bridge/CMakeLists.txt
++++ b/kinect2_bridge/CMakeLists.txt
+@@ -25,9 +25,9 @@ add_executable(${PROJECT_NAME}_node
+ 	src/kinect2_bridge.cpp
+ )
+ 
+-target_link_libraries(${PROJECT_NAME}_node freenect2)
++target_link_libraries(${PROJECT_NAME}_node ${freenect2_LIBRARIES})
+ 
+-include_directories(include/kinect2_bridge)
++include_directories(include/kinect2_bridge ${freenect2_INCLUDE_DIRS})
+ 
+ ament_target_dependencies(${PROJECT_NAME}_node 
+                           rclcpp 
+diff --git a/kinect2_bridge/launch/kinect2_bridge_launch.yaml b/kinect2_bridge/launch/kinect2_bridge_launch.yaml
+index d58dbf1..3258f39 100644
+--- a/kinect2_bridge/launch/kinect2_bridge_launch.yaml
++++ b/kinect2_bridge/launch/kinect2_bridge_launch.yaml
+@@ -15,10 +15,13 @@ launch:
+         - name: "sensor"
+           value: ""
+ 
+-        - name: "publish_tf" 
+-          value: true
++        # TF for kinect2_link → kinect2_rgb_optical_frame → kinect2_ir_optical_frame
++        # is published by robot_state_publisher via kinect2.xacro
++        # (rpy="-pi/2 0 -pi/2"). No need for the bridge's 100 Hz static TF thread.
++        - name: "publish_tf"
++          value: false
+ 
+-        - name: "base_name_tf"  
++        - name: "base_name_tf"
+           value: "$(var base_name)"
+ 
+         - name: "fps_limit"  
+@@ -27,8 +30,8 @@ launch:
+         - name: "use_png"  
+           value: false
+ 
+-        - name: "depth_method"  
+-          value: "default"
++        - name: "depth_method"
++          value: "cpu"
+ 
+         - name: "reg_method"  
+           value: "default"
+diff --git a/kinect2_bridge/launch/rtabmap.launch.py b/kinect2_bridge/launch/rtabmap.launch.py
+index 30aa3e1..cae5c1d 100644
+--- a/kinect2_bridge/launch/rtabmap.launch.py
++++ b/kinect2_bridge/launch/rtabmap.launch.py
+@@ -12,11 +12,11 @@ def launch_setup(context, *args, **kwargs):
+ 
+     parameters = [
+         {
+-            "frame_id": name+"_link",
++            "frame_id": "base_footprint",
+             "subscribe_rgb": True,
+             "subscribe_depth": True,
+-            "subscribe_odom_info": False,
+-            "approx_sync": False,
++            "subscribe_odom_info": True,
++            "approx_sync": True,
+             "Rtabmap/DetectionRate": "3.5",
+             "subscribe_scan_cloud": True,
+             "set_mode_mapping": True,
+@@ -24,10 +24,12 @@ def launch_setup(context, *args, **kwargs):
+     ]
+ 
+     remappings = [
+-        ("rgb/image", name+"/qhd/image_color_rect"),
+-        ("rgb/camera_info", name+"/qhd/camera_info"),
+-        ("depth/image", name+"/qhd/image_depth_rect"),
+-        ("scan_cloud", name+"/qhd/points"),
++    ("rgb/image",       "/kinect2/qhd/image_color_rect"),
++    ("depth/image",     "/kinect2/qhd/image_depth_rect"),
++    ("rgb/camera_info", "/kinect2/qhd/camera_info"),
++    ("scan",            "/scan"),
++    ("scan_cloud", "/kinect2/points"),
++    ("odom",            "/odometry/filtered"),
+     ]
+ 
+     return [
+@@ -39,12 +41,12 @@ def launch_setup(context, *args, **kwargs):
+             parameters=parameters,
+         ),
+ 
+-        Node(
+-            package='tf2_ros',
+-            executable='static_transform_publisher',
+-            output="screen",
+-            arguments = ['--x', '0', '--y', '0', '--z', '0', '--yaw', '0', '--pitch', '0', '--roll', '0', '--frame-id', 'base_link', '--child-frame-id', name+'_link']
+-        ),
++        # Node(
++        #     package='tf2_ros',
++        #     executable='static_transform_publisher',
++        #     output="screen",
++        #     arguments = ['--x', '0', '--y', '0', '--z', '0', '--yaw', '0', '--pitch', '0', '--roll', '0', '--frame-id', 'base_link', '--child-frame-id', name+'_link']
++        # ),
+ 
+         Node(
+             package='rtabmap_slam',
+diff --git a/kinect2_bridge/src/kinect2_bridge.cpp b/kinect2_bridge/src/kinect2_bridge.cpp
+index 6f59f98..708a463 100644
+--- a/kinect2_bridge/src/kinect2_bridge.cpp
++++ b/kinect2_bridge/src/kinect2_bridge.cpp
+@@ -233,7 +233,9 @@ private:
+     std::string depthDefault = "cpu";
+     std::string regDefault = "default";
+ 
+-#ifdef LIBFREENECT2_WITH_OPENGL_SUPPORT
++// OpenGL pipeline requires a display; force CPU pipeline as default for headless RPi use.
++// Pass depth_method:=opengl at runtime if a display is available.
++#if 0 && defined(LIBFREENECT2_WITH_OPENGL_SUPPORT)
+     depthDefault = "opengl";
+ #endif
+ #ifdef LIBFREENECT2_WITH_OPENCL_SUPPORT
+diff --git a/kinect2_calibration/src/kinect2_calibration.cpp b/kinect2_calibration/src/kinect2_calibration.cpp
+index 8e90a54..f4ce85c 100644
+--- a/kinect2_calibration/src/kinect2_calibration.cpp
++++ b/kinect2_calibration/src/kinect2_calibration.cpp
+@@ -34,7 +34,7 @@
+ #include "sensor_msgs/msg/camera_info.hpp"
+ #include "sensor_msgs/msg/image.hpp"
+ 
+-#include "cv_bridge/cv_bridge.h"
++#include "cv_bridge/cv_bridge.hpp"
+ 
+ #include "image_transport/image_transport.hpp"
+ #include "image_transport/subscriber_filter.hpp"

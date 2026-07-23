@@ -1,0 +1,16 @@
+twist_mux:
+  ros__parameters:
+    topics:
+      navigation:
+        topic   : cmd_vel_nav
+        timeout : 0.5
+        priority: 10
+        stamped : true
+
+
+
+      joystick:
+        topic   : hoverboard_base_controller/cmd_vel_unstamped
+        timeout : 0.5
+        priority: 100
+        stamped : true

@@ -1,0 +1,39 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+*.pyc
+__pycache__/
+
+# model weights - fetched by scripts/download_models.sh or from the Release
+*.pt
+*.pth
+*.tflite
+*.onnx
+*.engine
+src/person_follower/person_follower/models/
+
+# editor / IDE
+.vscode/
+.idea/
+*.vc.db
+browse.vc.db*
+
+# node
+node_modules/
+
+# secrets - never commit
+*.pem
+*.key
+*.p12
+.env
+
+# large simulation assets
+worlds/Dataset-of-Gazebo-Worlds-Models-and-Maps-master/
+*.zip
+*.tar
+*.tar.*
+
+# media originals
+*.mp4
+*.mov

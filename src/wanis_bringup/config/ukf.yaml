@@ -1,0 +1,140 @@
+### ukf.yaml — Wanis Elderly-Care Robot
+### robot_localization UKF node (alternative to EKF — use one or the other, not both)
+###
+### Confirmed from TF tree (ros2 run tf2_tools view_frames):
+###   odom → base_footprint : hoverboard_ros2_control @ 49.4 Hz  ← root moving frame
+###   base_footprint → base_link etc. : static transforms from robot_state_publisher
+###   Wheels: 10-inch (250mm) — more rotational inertia than 8-inch
+###
+### UKF advantage over EKF: better handling of nonlinear yaw changes during fast spins
+### (person-following involves sharp rotation manoeuvres).
+### Practical difference vs EKF for this robot: small but worth using if already available.
+
+ukf_filter_node:
+  ros__parameters:
+
+    use_sim_time: false
+    frequency: 50.0       # matches hoverboard odom rate (49.4 Hz confirmed)
+    sensor_timeout: 0.1
+    two_d_mode: true      # flat indoor floor — suppresses z/roll/pitch noise
+    transform_time_offset: 0.02   # 20ms forward extrapolation — UKF is preferred for person-following (sharp yaw during recovery rotation scans)
+    transform_timeout: 0.1
+    print_diagnostics: true
+    debug: false
+    debug_out_file: /tmp/ukf_debug.txt
+    publish_tf: true
+    publish_acceleration: false
+    reset_on_time_jump: true
+
+    # CRITICAL FIXES (confirmed by TF tree):
+    #   base_link_frame: base_footprint — hoverboard publishes odom→base_footprint
+    #     (NOT base_link — that is a static child of base_footprint)
+    #   world_frame: odom — slam_toolbox owns map→odom; EKF/UKF only does odom→base_footprint
+    map_frame:       map
+    odom_frame:      odom
+    base_link_frame: base_footprint   # FIXED: confirmed by TF tree — odom→base_footprint
+    world_frame:     odom             # FIXED: was "map" → caused TF conflict with slam_toolbox
+
+    # ── Sensor 0: Hoverboard odometry (full Odometry: pose + twist confirmed) ─
+    odom0: /hoverboard_base_controller/odom
+
+    # Full Odometry strategy:
+    #   - Fuse x,y pose DIFFERENTIALLY → converts absolute pose to velocity internally,
+    #     avoiding long-term drift accumulation that would conflict with SLAM corrections
+    #   - Fuse vx (forward velocity) directly from twist
+    #   - Fuse vyaw (yaw rate) directly from twist
+    #   - Do NOT fuse yaw from pose → BNO055 gives better absolute heading
+    #   - Do NOT fuse vy → always 0 on differential drive
+    #        [x      y      z      roll   pitch  yaw    vx     vy     vz     vroll  vpitch vyaw   ax     ay     az]
+    odom0_config: [true,  true,  false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, false,   # vyaw removed: IMU gyro is cleaner than encoder-derived yaw rate
+                   false, false, false]
+
+    odom0_queue_size:                5
+    odom0_nodelay:                   true
+    odom0_differential:              true    # pose converted to velocity internally
+    odom0_relative:                  false
+    odom0_twist_rejection_threshold: 2.0   # tighter now that odom covariances are realistic (larger)
+
+    # ── Sensor 1: BNO055 IMU ──────────────────────────────────────────────────
+    imu0: /imu
+
+    # BNO055 strengths: absolute yaw (magnetometer fusion), yaw rate (gyro), forward accel
+    # Do NOT fuse roll/pitch (two_d_mode + chassis vibration makes them noisy)
+    #        [x      y      z      roll   pitch  yaw    vx     vy     vz     vroll  vpitch vyaw   ax     ay     az]
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false,  false, false]
+
+    imu0_nodelay:                            true
+    imu0_differential:                       false
+    imu0_relative:                           false   # BNO055 provides absolute heading
+    imu0_queue_size:                         10
+    imu0_pose_rejection_threshold:           3.0     # generous — IMU now has proper covariances set in driver
+    imu0_twist_rejection_threshold:          3.0
+    imu0_linear_acceleration_rejection_threshold: 2.0
+    imu0_remove_gravitational_acceleration:  true    # BNO055 removes gravity in linear_accel mode
+
+    # ── Control feed-forward ──────────────────────────────────────────────────
+    use_control:     true
+    stamped_control: false
+    control_timeout: 0.2
+    control_config:  [true, false, false, false, false, true]  # vx, vyaw
+
+    # 10-inch (250mm) wheels: more rotational inertia than 8-inch
+    # Lower linear accel limit reflects slower linear acceleration of larger wheels
+    acceleration_limits:  [0.8, 0.0, 0.0, 0.0, 0.0, 2.0]
+    deceleration_limits:  [1.0, 0.0, 0.0, 0.0, 0.0, 2.5]
+    acceleration_gains:   [0.6, 0.0, 0.0, 0.0, 0.0, 0.7]
+    deceleration_gains:   [0.8, 0.0, 0.0, 0.0, 0.0, 0.9]
+
+    # ── Process noise covariance Q ────────────────────────────────────────────
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    process_noise_covariance: [
+      0.05,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.05,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.03,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.05,  0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001]
+
+    # ── Initial estimate covariance P0 ────────────────────────────────────────
+    # Realistic startup uncertainty (was 1e-9 everywhere = filter never converged fast)
+    # Position: ±1m uncertain, heading: ±0.32 rad, velocities: small
+    initial_estimate_covariance: [
+      1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6]
+
+    # ── UKF sigma-point parameters ────────────────────────────────────────────
+    # alpha=0.003: slightly larger than default 0.001 — better spread for large yaw changes
+    # kappa=0.0:   correct for state-space UKFs
+    # beta=2.0:    Gaussian distribution assumption (correct for this application)
+    alpha: 0.003
+    kappa: 0.0
+    beta:  2.0

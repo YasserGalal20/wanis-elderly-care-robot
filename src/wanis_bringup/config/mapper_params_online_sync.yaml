@@ -1,0 +1,105 @@
+
+slam_toolbox:
+  ros__parameters:
+
+    # ── Solver ────────────────────────────────────────────────────────────────
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: HuberLoss    # robust to occasional bad scans
+
+    # ── ROS frames ────────────────────────────────────────────────────────────
+    odom_frame:  odom
+    map_frame:   map
+    # TF tree confirms: odom -> base_footprint is the live chain at 49 Hz.
+    # slam_toolbox must use base_footprint to correctly compute the scan origin.
+    base_frame:  base_footprint
+    scan_topic:  /scan
+    use_map_saver: true
+    mode: mapping
+
+    # ── Timing ────────────────────────────────────────────────────────────────
+    debug_logging: false
+    throttle_scans: 1           # process every scan (A1 at ~7Hz is not excessive)
+
+    # How often to publish the odom->map TF. 0.02s = 50 Hz matches EKF output.
+    transform_publish_period: 0.02
+
+    # How often to update the full map. 2s is responsive enough for home use.
+    map_update_interval: 2.0
+
+    # Map cell resolution in metres. 0.05m = 5cm per cell — good for home furniture.
+    # Decrease to 0.03 for higher precision (more CPU cost).
+    resolution: 0.05
+
+    # RPLidar A1 reliable range. Set to actual sensor max to avoid empty cells.
+    max_laser_range: 6.0
+
+    # CRITICAL FIX: was 0.5 seconds — at 0.45 m/s that means scans 22cm apart.
+    # 0.2s = max 9cm between processed scans — much better for tight corridors.
+    minimum_time_interval: 0.2
+
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+    stack_size_to_use: 40000000
+    enable_interactive_mode: true
+
+    # ── Scan matching ─────────────────────────────────────────────────────────
+    use_scan_matching: true
+    use_scan_barycenter: true
+
+    # Minimum movement before a new scan is processed.
+    # Lower = more scans processed = better map accuracy (more CPU cost).
+    minimum_travel_distance: 0.05   # 5cm — good for slow indoor robot
+    minimum_travel_heading: 0.05   # ~3 degrees
+
+    # More scan buffer helps loop closure in small rooms where the robot
+    # revisits the same area frequently.
+    scan_buffer_size: 15            # increased from 10
+
+    scan_buffer_maximum_scan_distance: 10.0
+    link_match_minimum_response_fine: 0.13
+    link_scan_maximum_distance: 1.5
+
+    # ── Loop closure ──────────────────────────────────────────────────────────
+    # Home apartments: corridors connect back to the same room often.
+    # Increase search distance so loop closure fires when returning down a hallway.
+    loop_search_maximum_distance: 4.0    # increased from 3.0
+
+    do_loop_closing: true
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine: 0.50
+
+    # ── Correlation search (local scan matching) ──────────────────────────────
+    # Smaller search space than default — home rooms are small, robot moves slowly.
+    # 20cm search space at 2cm resolution is appropriate for indoor low-speed use.
+    # Reduces CPU vs original 30cm × 0.02cm = 1500 cells per dimension.
+    correlation_search_space_dimension: 20.0      # reduced from 30 — saves CPU
+    correlation_search_space_resolution: 0.02
+    correlation_search_space_smear_deviation: 0.1
+
+    # ── Loop closure search space ─────────────────────────────────────────────
+    # Keep larger than correlation space — loop closure needs to handle accumulated drift.
+    loop_search_space_dimension: 30.0
+    loop_search_space_resolution: 0.02
+    loop_search_space_smear_deviation: 0.03
+
+    # ── Scan matcher penalties ────────────────────────────────────────────────
+    # These penalise scan matches that require large position/angle corrections.
+    # Lower distance penalty = more willing to accept matches that require translation.
+    # Appropriate for home where furniture can cause partial occlusions.
+    distance_variance_penalty: 0.4     # slightly reduced from 0.5 — less strict
+    angle_variance_penalty: 1.0
+
+    fine_search_angle_offset: 0.00349
+    coarse_search_angle_offset: 0.349
+    coarse_angle_resolution: 0.0349
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    use_response_expansion: true
+    min_pass_through: 2
+    occupancy_threshold: 0.1

@@ -1,0 +1,93 @@
+# ros_gz_bridge parameter bridge configuration
+# Bridges Gazebo Harmonic topics to ROS2.
+#
+# The rgbd_camera sensor in the sim URDF publishes on the gz side under
+# the "kinect" prefix.  We bridge each stream and then use node-level
+# remappings (see launch/hoverboard_server.launch.py) to rename them to
+# the topics the person_follower / Nav2 / safety_guard expect on the
+# real robot:
+#   kinect/image        -> /kinect/rgb/image_raw
+#   kinect/depth_image  -> /kinect/depth/image_raw
+#   kinect/points       -> /kinect/points
+#   kinect/camera_info  -> /kinect/depth/camera_info
+
+# Lidar
+- topic_name: "scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: GZ_TO_ROS
+
+# RGB image (from rgbd_camera)
+- topic_name: "kinect/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Depth image (from rgbd_camera)
+- topic_name: "kinect/depth_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Point cloud (from rgbd_camera) — consumed by safety_guard + Nav2 voxel layer
+- topic_name: "kinect/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+# Shared camera_info (from rgbd_camera)
+- topic_name: "kinect/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# ── Kinect V2 (960×540, right side of robot, heavy mode) ──
+- topic_name: "kinect2/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- topic_name: "kinect2/depth_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- topic_name: "kinect2/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+- topic_name: "kinect2/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Fall camera (separate forward-facing camera used by fall detection)
+- topic_name: "camera/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- topic_name: "camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+
+# IMU
+- topic_name: "/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+# Clock (sim time)
+- topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+# Velocity commands (for teleop directly in Gazebo)
+- topic_name: "cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ

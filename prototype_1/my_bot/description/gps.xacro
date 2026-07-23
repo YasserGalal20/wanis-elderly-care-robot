@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+        <!-- ANTENNA GPS -->
+        <joint name="gps_joint" type="fixed">
+            <!-- <axis xyz="0 1 0"/> -->
+            <parent link="chassis"/>
+            <child link="gps_frame"/>
+            <origin xyz="0.08 0 0.225" rpy="0 0 0"/>
+
+        </joint>
+
+        <!-- </joint> -->
+        <link name="gps_frame">
+
+            <xacro:inertial_box mass="0.05" x="0.13" y="0.08" z="0.02">
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+            </xacro:inertial_box>
+    
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <box size="0.13 0.08 0.02" />
+                </geometry>
+                <material name="black" />
+            </visual>
+
+            <collision>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <box size="0.13 0.08 0.02" />
+                </geometry>
+            </collision>
+
+        </link>
+
+
+
+
+      <gazebo reference="gps_frame">
+        <sensor
+          name="gps"
+          type="navsat">
+          <navsat>
+              <position_sensing>
+                  <horizontal>
+                      <noise type="gaussian">
+                          <mean>0.0</mean>
+                          <stddev>2</stddev>
+                      </noise>
+                  </horizontal>
+                  <vertical>
+                      <noise type="gaussian">
+                          <mean>0.0</mean>
+                          <stddev>2.5</stddev>
+                      </noise>
+                  </vertical>
+              </position_sensing>
+              <velocity_sensing>
+                  <horizontal>
+                      <noise type="gaussian">
+                          <mean>0.0</mean>
+                          <stddev>0.1</stddev>
+                      </noise>
+                  </horizontal>
+                  <vertical>
+                      <noise type="gaussian">
+                          <mean>0.0</mean>
+                          <stddev>0.1</stddev>
+                      </noise>
+                  </vertical>
+              </velocity_sensing>
+          </navsat>
+          <always_on>1</always_on>
+          <update_rate>1.0</update_rate>
+          <topic>/gps/fix</topic>
+          <gz_frame_id>gps_frame</gz_frame_id>
+          <plugin
+            filename="ignition-gazebo-navsat-system"
+            name="ignition::gazebo::systems::NavSat" />
+        </sensor>
+      </gazebo>
+
+</robot>

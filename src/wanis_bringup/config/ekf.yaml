@@ -1,0 +1,161 @@
+
+ekf_filter_node:
+  ros__parameters:
+
+    use_sim_time: false
+
+    # Output frequency. 50 Hz is the sweet spot for an RPi5 running a full stack.
+    # Hoverboard odom arrives at ~50 Hz so there is no benefit going higher.
+    frequency: 50.0
+
+    # How long before we consider a sensor timed out and run a predict-only cycle.
+    sensor_timeout: 0.1
+
+    # 2D mode: Wanis operates on a flat floor.
+    # This suppresses z, roll, pitch noise from hoverboard vibration / BNO085.
+    two_d_mode: true
+
+    transform_time_offset: 0.02  # 20ms forward extrapolation — reduces stale-TF costmap jitter during fast turns
+    transform_timeout: 0.1      # small tolerance for TF lookup latency on RPi5
+
+    print_diagnostics: true
+    debug: false
+    debug_out_file: /tmp/ekf_debug.txt
+
+    publish_tf: true
+    publish_acceleration: false
+    reset_on_time_jump: true
+
+    # Frame configuration.
+    # world_frame MUST be odom — slam_toolbox publishes map->odom, not us.
+    map_frame:       map
+    odom_frame:      odom
+    # TF tree shows odom -> base_footprint (at 49 Hz from hoverboard).
+    # base_footprint -> base_link is a static transform from the URDF.
+    # The EKF must attach to base_footprint because that is what the hoverboard
+    # odometry directly drives. Using base_link here would require an extra
+    # lookup through the static transform and can cause timing issues.
+    base_link_frame: base_footprint
+    world_frame:     odom      # <-- CRITICAL FIX: was "map" which fought slam_toolbox
+
+    # ── Sensor 0: Hoverboard wheel encoder odometry ───────────────────────────
+    odom0: /hoverboard_base_controller/odom
+
+    # Hoverboard publishes FULL Odometry (pose + velocities).
+    # Strategy: fuse pose x,y DIFFERENTIALLY (converts to velocity, avoids drift
+    # accumulation conflicting with SLAM) + fuse vx and vyaw directly.
+    # Differential mode on pose means we get the benefit of position data without
+    # the long-term drift that would fight slam_toolbox's map corrections.
+    # Do NOT fuse yaw from odometry — BNO085 gives better absolute heading.
+    #
+    #        [x      y      z      roll   pitch  yaw    vx     vy     vz     vroll  vpitch vyaw   ax     ay     az]
+    odom0_config: [true,  true,  false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, false,   # vyaw removed: IMU gyro is cleaner than encoder-derived yaw rate
+                   false, false, false]
+
+    odom0_queue_size:               5
+    odom0_nodelay:                  true    # minimize latency for high-freq odom
+    odom0_differential:             true    # IMPORTANT: pose fused differentially
+    odom0_relative:                 false
+
+    # Reject odom measurements that are >3.0 Mahalanobis distance from current state.
+    # Protects against encoder glitches / hoverboard communication dropouts.
+    odom0_twist_rejection_threshold: 2.0   # tighter now that odom covariances are realistic (larger)
+
+    # ── Sensor 1: BNO085 IMU ──────────────────────────────────────────────────
+    imu0: /imu
+
+    # BNO085 is a 9-DOF fusion IMU. Its strengths:
+    #   - Yaw (heading): good absolute orientation from magnetometer fusion
+    #   - Yaw rate (gyro z): low noise, high frequency
+    #   - Linear acceleration x: useful for velocity convergence during rotations
+    # We do NOT fuse roll/pitch — two_d_mode=true makes them irrelevant and
+    # hoverboard chassis vibration makes them noisy.
+    # We do NOT fuse absolute x/y position (IMU doesn't provide it).
+    #
+    #        [x      y      z      roll   pitch  yaw    vx     vy     vz     vroll  vpitch vyaw   ax     ay     az]
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false,  false, false]
+
+    imu0_nodelay:                            true
+    imu0_differential:                       false
+    imu0_relative:                           false   # BNO085 gives absolute heading
+    imu0_queue_size:                         10
+    imu0_pose_rejection_threshold:           3.0     # generous — IMU now has proper covariances set in driver
+    imu0_twist_rejection_threshold:          3.0
+    imu0_linear_acceleration_rejection_threshold: 2.0
+
+    # BNO085 in linear_acceleration mode already removes gravity.
+    imu0_remove_gravitational_acceleration:  true
+
+    # ── Control input (feed-forward during prediction) ─────────────────────────
+    # Using cmd_vel as a control input improves convergence during fast rotations
+    # because the filter knows what command was issued.
+    use_control:    true
+    stamped_control: false           # we publish geometry_msgs/Twist
+    control_timeout: 0.2
+    control_config:  [true, false, false, false, false, true]  # vx, vyaw
+
+    # Hoverboard kinematics: 10-inch (250mm) wheels, ~15kg robot.
+    # Larger wheels = higher top speed per RPM but more rotational inertia.
+    # Linear acceleration slightly lower than 8-inch, angular slightly higher.
+    acceleration_limits:  [0.8, 0.0, 0.0, 0.0, 0.0, 2.0]
+    deceleration_limits:  [1.0, 0.0, 0.0, 0.0, 0.0, 2.5]
+    acceleration_gains:   [0.6, 0.0, 0.0, 0.0, 0.0, 0.7]
+    deceleration_gains:   [0.8, 0.0, 0.0, 0.0, 0.0, 0.9]
+
+    # ── Process noise covariance Q ────────────────────────────────────────────
+    # Diagonal entries (variances) ordered:
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    #
+    # Tuning philosophy for Wanis (indoor, flat floor, hoverboard):
+    #   x, y:     0.05  — moderate position drift expected from hoverboard wheel slip
+    #   yaw:      0.03  — BNO085 heading is stable but slow-drift possible
+    #   vx:       0.1   — hoverboard velocity can change quickly (person following)
+    #   vyaw:     0.1   — robot rotates quickly during person following
+    #   ax:       0.05  — forward accel used, small noise
+    #   z, roll, pitch, vy, vz, ay, az: small — 2D mode suppresses these
+    process_noise_covariance: [
+      0.05,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.05,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.03,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.05,  0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001, 0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.001]
+
+    # ── Initial estimate covariance P0 ────────────────────────────────────────
+    # Realistic starting uncertainty — NOT 1e-9 (near-zero) which was the bug.
+    # 1e-9 told the filter it starts with perfect knowledge, causing sluggish
+    # convergence for the first 10-20 seconds of operation.
+    # Values here reflect: position unknown within ~1m, heading uncertain by ~0.1rad,
+    # velocities approximately zero (robot starts stationary).
+    initial_estimate_covariance: [
+      1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   1.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,   0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.01,  0.0,   0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6,  0.0,
+      0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   1e-6]
