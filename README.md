@@ -2,7 +2,7 @@
 
 A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, and brings them their medication on schedule.
 
-Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked hoverboard motors.
+Graduation project. Two full hardware prototypes, ROS 2 Jazzy on Ubuntu 24.04, built on hacked hoverboard motors.
 
 ![The final prototype](media/final_prototype.jpg)
 
@@ -14,6 +14,7 @@ Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked 
 - **Recovers when it loses them.** A four-stage recovery ladder: back up → scan in place → drive to frontier waypoints → re-acquire by appearance match.
 - **Detects falls** with a custom-trained YOLO model and raises an alert.
 - **Delivers medication** on a schedule via an ESP32 pill dispenser, interrupting whatever it was doing.
+- **Monitors vital signs.** An ESP32 with MAX30102/MAX30205 sensors reports heart rate, blood-oxygen saturation and body temperature over Wi-Fi, so a fall alert arrives with context rather than on its own.
 - **Refuses to hit anything.** A safety node sits between every other node and the motors, and has final say.
 
 ## Demo
@@ -88,7 +89,7 @@ The split exists because the perception stack (YOLO segmentation + OSNet ReID, p
 | Kinect v1 / v2 | RGB + depth for person tracking |
 | BNO08x IMU | Heading |
 | ESP32 ×3 | Pill dispenser (carousel + cartridges + camera bridge) |
-| ESP32 + MAX30102/30205 | Biometric monitoring |
+| ESP32 + MAX30102 / MAX30205 | Vital signs — heart rate, SpO2, body temperature |
 
 **Why hoverboard motors?** They give high torque, lift real weight, and draw little power — exactly what a home robot that must carry things needs, and they cost almost nothing second-hand. The wheels ship with locked firmware, so the motor controller was reflashed with [an open FOC firmware](https://github.com/hoverboard-robotics/hoverboard-firmware-hack-FOC) and driven over serial from `ros2_control`.
 
@@ -142,6 +143,21 @@ Keeping this separate from the follower was a deliberate choice: the follower is
 
 [`fall3.py`](src/person_follower/person_follower/fall3.py) runs a **custom-trained** YOLO model (`fall_unified_yolo26m_v1.pt`) that classifies fallen vs upright people, publishing `vision_msgs/Detection2DArray` and an alert on `/Nour_fall_detection`. The weights are attached to this repo's GitHub Release.
 
+## Health monitoring
+
+Falls are the emergency case; the slower signal matters too. A wearable ESP32
+carrying a **MAX30102** pulse-oximeter and a **MAX30205** body-temperature sensor
+streams heart rate, SpO2 and temperature over Wi-Fi to the orchestration layer,
+which posts them alongside the robot's own state.
+
+The point of pairing this with the fall detector is context. A fall alert on its
+own tells a carer that someone is on the floor. A fall alert together with a
+heart rate and an oxygen reading tells them how urgent it is, and whether the
+fall was the cause or the consequence.
+
+*(Firmware and the orchestration service that consumes it were written by other
+team members and are not in this repository — see the note above.)*
+
 ---
 
 ## Repository layout
@@ -178,7 +194,7 @@ ros2 launch wanis_bringup hoverboard_server.launch.py  # server: perception, Nav
 ros2 run person_follower final_person_follower
 ```
 
-Requires ROS 2 Humble, `ultralytics`, `torch`, `torchreid`, `opencv-python`, `mediapipe`.
+Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`, `torchreid`, `opencv-python`, `mediapipe`.
 
 > **Note on the full workspace.** This repo contains our own code plus patches, so it stays small and readable. The complete 1.9 GB workspace — every dependency, Gazebo worlds, build artifacts and raw test footage exactly as it ran — is attached as an archive to the [GitHub Release](../../releases).
 

@@ -15,7 +15,7 @@
 | ESP32-WROVER | 1 | Pill dispenser camera + Wi-Fi bridge |
 | LOLIN32 Lite | 1 | Pill carousel servo |
 | ESP32 | 1 | Pill cartridge servos |
-| ESP32 + MAX30102 / MAX30205 | 1 | Heart rate, SpO2, temperature |
+| ESP32 + MAX30102 / MAX30205 | 1 | Vital signs: heart rate, SpO2, body temperature |
 | Battery (hoverboard pack) | 1 | Drive + electronics |
 
 ## Reflashing the hoverboard mainboard
@@ -46,6 +46,13 @@ The stock firmware only accepts balance-board input, so the board is reflashed w
 |---|---|
 | ![Proposed](../media/cad_proposed_model.jpg) | ![Finished](../media/cad_finished_model.jpg) |
 | Proposed model | Final design |
+
+## Vital-sign sensing
+
+The MAX30102 is a reflective pulse-oximeter (red + IR LEDs and a photodiode) and
+the MAX30205 is a clinical-accuracy body-temperature sensor. Both sit on I2C to
+an ESP32, which pushes readings over Wi-Fi rather than through ROS, so the
+wearable stays independent of whether the robot is running.
 
 ## Frames
 
