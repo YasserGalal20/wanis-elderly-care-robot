@@ -277,7 +277,7 @@ def generate_launch_description():
     # ── Safety Guard ──
     safety_guard_node = Node(
         package="person_follower",
-        executable="safety",
+        executable="safety_guard",
         name="safety_guard",
         output="screen",
     )

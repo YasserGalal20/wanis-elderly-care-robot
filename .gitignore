@@ -34,6 +34,7 @@ worlds/Dataset-of-Gazebo-Worlds-Models-and-Maps-master/
 *.tar
 *.tar.*
 
-# media originals
+# media originals (compressed demo clips under media/video/ are kept)
 *.mp4
 *.mov
+!media/video/*.mp4

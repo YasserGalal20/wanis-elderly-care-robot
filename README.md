@@ -18,7 +18,18 @@ Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked 
 
 ## Demo
 
-*(videos to be linked here)*
+<!-- To make these play inline: open this README on GitHub, drag the matching
+     file from media/video/ into a comment box, and replace the link below with
+     the https://github.com/user-attachments/assets/... URL it produces. -->
+
+| Clip | |
+|---|---|
+| [Final robot following a person](media/video/01-final-robot-following.mp4) | The finished platform tracking and following its locked target |
+| [Final build and testing](media/video/02-final-build-and-test.mp4) | Assembly of the final chassis and first drive |
+| [Hacking the hoverboard motors](media/video/03-hoverboard-motor-hack.mp4) | Reflashing the mainboard and driving the wheels over serial |
+| [Prototype 1 — real-life tests](media/video/04-prototype1-tests.mp4) | First prototype following in a home environment |
+| [Prototype 1 — first run](media/video/05-prototype1-first-run.mp4) | Earliest working follow |
+| [Prototype 1 — following](media/video/06-prototype1-following.mp4) | PID following with standoff distance |
 
 | | |
 |---|---|
@@ -34,6 +45,8 @@ Compute is split across two machines: a Raspberry Pi on the robot handles sensor
 ![Software architecture](media/software_architecture.png)
 
 The split exists because the perception stack (YOLO segmentation + OSNet ReID, per frame) will not run in real time on a Pi, but the safety layer *must* keep running even if the network drops. So anything that can stop the wheels lives on the robot.
+
+> **What this repository covers.** Wanis was a team project and the diagram shows the whole system. This repo contains the robotics and perception stack — drive, sensing, safety, navigation, person following — plus the fall-detection node. The assistant and memory, speech pipeline, Flask orchestration, pill-dispenser firmware and biometric monitoring were built by other team members and their code is not included here.
 
 **Hardware**
 
@@ -111,7 +124,7 @@ patches/                 our modifications to the upstream packages
 prototype_1/             first prototype: earlier follower, explorer, URDF, launch
 robot.repos              upstream dependencies, pinned to exact commits
 scripts/                 workspace setup and model download
-media/                   photos and diagrams
+media/                   photos, diagrams and demo clips
 docs/                    build notes and design decisions
 ```
 
@@ -168,6 +181,7 @@ The biggest lesson from prototype 1: following the *nearest* person is useless i
 | Person following, re-identification, recovery state machine | Yasser Galal |
 | Safety layer, navigation, SLAM & state estimation | Yasser Galal |
 | Fall detection model and node | Nour |
+| Assistant, speech pipeline, orchestration, pill dispenser, biometrics | Other team members — *not included in this repository* |
 
 ## Built on
 
