@@ -163,7 +163,7 @@ Requires ROS 2 Humble, `ultralytics`, `torch`, `torchreid`, `opencv-python`, `me
 | Perception | MediaPipe pose + DeepLabV3 | YOLO11-seg + BoT-SORT + OSNet ReID |
 | Identity | None — followed nearest person | Full four-cue signature lock |
 | Recovery | Rotate toward last motion | Four-stage ladder incl. frontier search |
-| Compute | Single machine | Pi + server split |
+| Compute | Pi + server split | Pi + server split |
 
 ![Prototype 1](media/prototype1.png)
 
