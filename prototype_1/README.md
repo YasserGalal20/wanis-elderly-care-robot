@@ -31,8 +31,10 @@ almost immediately — anyone walking past captures the robot. Every identity an
 re-identification feature in the final build exists because of this.
 
 Secondary issues: MediaPipe pose was slower and less robust than segmentation-based
-detection; the single-machine setup meant a laggy laptop could delay motor
-commands, which is why the final build moved safety onto the Pi.
+detection; and although compute was already split between a Raspberry Pi and a
+server, nothing on the Pi could veto a bad velocity command — so a laggy or
+disconnected server could still drive the robot. That is why the final build put
+an authoritative safety layer on the Pi itself.
 
 ## Note on the phone sensor bridge
 

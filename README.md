@@ -1,6 +1,6 @@
 # Wanis — An Elderly-Care Companion Robot
 
-A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, and brings them their medication on schedule.
+A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, Measures their biometrics, and brings them their medication on schedule.
 
 Graduation project. Two full hardware prototypes, ROS 2 Jazzy on Ubuntu 24.04, built on hacked hoverboard motors.
 
@@ -14,7 +14,7 @@ Graduation project. Two full hardware prototypes, ROS 2 Jazzy on Ubuntu 24.04, b
 - **Recovers when it loses them.** A four-stage recovery ladder: back up → scan in place → drive to frontier waypoints → re-acquire by appearance match.
 - **Detects falls** with a custom-trained YOLO model and raises an alert.
 - **Delivers medication** on a schedule via an ESP32 pill dispenser, interrupting whatever it was doing.
-- **Monitors vital signs.** An ESP32 with MAX30102/MAX30205 sensors reports heart rate, blood-oxygen saturation and body temperature over Wi-Fi, so a fall alert arrives with context rather than on its own.
+- **Measures biometrics.** An ESP32 with MAX30102/MAX30205 sensors reports heart rate, blood-oxygen saturation and body temperature over Wi-Fi, so a fall alert arrives with context rather than on its own.
 - **Refuses to hit anything.** A safety node sits between every other node and the motors, and has final say.
 
 ## Demo
@@ -208,7 +208,7 @@ Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`,
 | Perception | MediaPipe pose + DeepLabV3 | YOLO11-seg + BoT-SORT + OSNet ReID |
 | Identity | None — followed nearest person | Full four-cue signature lock |
 | Recovery | Rotate toward last motion | Four-stage ladder incl. frontier search |
-| Compute | Single machine | Pi + server split |
+| Compute | Pi + server split | Pi + server split |
 
 | The first prototype | Hardware |
 |---|---|
@@ -219,8 +219,9 @@ Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`,
 | ![Prototype 1 hardware diagram](media/prototype1_hardware_diagram.png) | ![Prototype 1 software diagram](media/prototype1_software_diagram.png) |
 
 Prototype 1 was a small differential-drive base: DC motors through an Arduino
-bridge, RPLiDAR, and a depth camera, all on one machine. Simple enough to get
-following working end-to-end quickly, which is exactly what it was for.
+bridge, RPLiDAR, and a depth camera, already split across a Raspberry Pi and a
+server. Simple enough to get following working end-to-end quickly, which is
+exactly what it was for.
 
 The first prototype is kept in [`prototype_1/`](prototype_1/) because the progression is the interesting part. It established the ideas — PID following, a rear/side proximity guard, frontier exploration when the person is lost — and the second rebuilt them properly once we understood the problem.
 
