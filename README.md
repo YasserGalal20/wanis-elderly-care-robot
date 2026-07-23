@@ -31,10 +31,37 @@ Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked 
 | [Prototype 1 — first run](media/video/05-prototype1-first-run.mp4) | Earliest working follow |
 | [Prototype 1 — following](media/video/06-prototype1-following.mp4) | PID following with standoff distance |
 
+---
+
+## Design
+
+The chassis was modelled in CAD before anything was cut, then built to match.
+
+| Proposed model | Final design |
+|---|---|
+| ![Proposed CAD model](media/cad_proposed_model.jpg) | ![Finished CAD model](media/cad_finished_model.jpg) |
+
+| Built | Internals |
+|---|---|
+| ![Final prototype](media/final_prototype.jpg) | ![Internals](media/final_prototype_internals.jpg) |
+
+<details>
+<summary><b>Build photos</b></summary>
+
 | | |
 |---|---|
-| ![Internals](media/final_prototype_internals.jpg) | ![Build](media/final_build_1.jpg) |
-| Inside the final chassis | Assembly |
+| ![Frame before assembly](media/final_prebuild.jpg) | ![Mounting the drive](media/final_build_1.jpg) |
+| Frame before assembly | Mounting the drive |
+| ![Electronics layer](media/final_build_2.jpg) | ![Sensor mast](media/final_build_3.jpg) |
+| Electronics layer | Sensor mast |
+
+</details>
+
+The design brief was awkward: tall enough that a camera sees a standing person's
+upper body from a few metres away, low enough not to tip, wide enough to carry
+the pill dispenser and battery, and narrow enough for a domestic doorway. The
+sensor mast is the visible result — it keeps the Kinect at chest height while
+the mass stays low over the axle.
 
 ---
 
@@ -49,6 +76,8 @@ The split exists because the perception stack (YOLO segmentation + OSNet ReID, p
 > **What this repository covers.** Wanis was a team project and the diagram shows the whole system. This repo contains the robotics and perception stack — drive, sensing, safety, navigation, person following — plus the fall-detection node. The assistant and memory, speech pipeline, Flask orchestration, pill-dispenser firmware and biometric monitoring were built by other team members and their code is not included here.
 
 **Hardware**
+
+![Final hardware layout](media/final_hardware_diagram.png)
 
 | Part | Role |
 |---|---|
@@ -165,7 +194,17 @@ Requires ROS 2 Humble, `ultralytics`, `torch`, `torchreid`, `opencv-python`, `me
 | Recovery | Rotate toward last motion | Four-stage ladder incl. frontier search |
 | Compute | Single machine | Pi + server split |
 
-![Prototype 1](media/prototype1.png)
+| The first prototype | Hardware |
+|---|---|
+| ![Prototype 1](media/prototype1.png) | ![Prototype 1 hardware](media/prototype1_hardware.png) |
+
+| Hardware layout | Software layout |
+|---|---|
+| ![Prototype 1 hardware diagram](media/prototype1_hardware_diagram.png) | ![Prototype 1 software diagram](media/prototype1_software_diagram.png) |
+
+Prototype 1 was a small differential-drive base: DC motors through an Arduino
+bridge, RPLiDAR, and a depth camera, all on one machine. Simple enough to get
+following working end-to-end quickly, which is exactly what it was for.
 
 The first prototype is kept in [`prototype_1/`](prototype_1/) because the progression is the interesting part. It established the ideas — PID following, a rear/side proximity guard, frontier exploration when the person is lost — and the second rebuilt them properly once we understood the problem.
 
