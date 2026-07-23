@@ -47,7 +47,7 @@ Each stage costs more time and risk than the last, so escalating in order means 
 
 ## Why the safety layer is a separate node
 
-The follower is a 2,700-line node with a state machine, several PID loops and a neural network. It is the most likely thing in the system to have a bug.
+The follower is a 2,700-line node with a state machine, several PID loops and a neural network. It is the most likely thing in the system to fail or throw an exception at any moment.
 
 So it is not trusted with collision avoidance. It publishes intent to `/cmd_vel_raw`, and a small, boring node with one job decides what actually reaches the motors. The guard is simple enough to read in full and convince yourself it is correct — which is the whole point.
 
