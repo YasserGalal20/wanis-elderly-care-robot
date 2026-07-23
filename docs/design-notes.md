@@ -8,7 +8,7 @@ Short notes on why things are built the way they are. The README covers *what* t
 
 We needed wheels that produce high torque, can carry real weight, and do not drain the battery — a home robot has to push through carpet edges and carry a pill dispenser. Hoverboard hub motors do all three and cost almost nothing second-hand.
 
-The catch is the stock controller runs locked firmware that only accepts balance-board input. The board is reflashed with an open-source FOC firmware, which exposes a serial protocol we drive from a `ros2_control` hardware interface. Our firmware config changes are in [`patches/hoverboard-firmware-hack-FOC.patch`](../patches/hoverboard-firmware-hack-FOC.patch).
+The catch is the stock controller runs locked firmware that only accepts balance-board input. The board is reflashed with an open-source FOC firmware, which exposes a serial protocol we drive from a `ros2_control` hardware interface.
 
 ## Why the compute is split across two machines
 
