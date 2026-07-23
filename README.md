@@ -2,7 +2,7 @@
 
 A mobile robot that follows a specific elderly person around their home, keeps following the *right* person in a crowd, detects if they fall, Measures their biometrics, and brings them their medication on schedule.
 
-Graduation project. Two full hardware prototypes, ROS 2 Humble, built on hacked hoverboard motors.
+Graduation project. Two full hardware prototypes, ROS 2 Jazzy, built on hacked hoverboard motors.
 
 ![The final prototype](media/final_prototype.jpg)
 
