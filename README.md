@@ -114,7 +114,6 @@ Scored together, the signature holds a lock through occlusion and re-acquires th
 ```
 UNLOCKED ──(lock)──► LOCKED
 LOCKED ──(lost 1.5s)──► RECOVERING_BACKUP    back off, widen the view
-       ──(1.0s)───────► RECOVERING_SCAN      rotate toward last known motion
        ──(8s)─────────► RECOVERING_FRONTIER  Nav2 to unexplored frontiers
 ANY_RECOVERY ──(signature match)──► LOCKED
 ANY ──(/pill_time)──► PILL_DELIVERY
