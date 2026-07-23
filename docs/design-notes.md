@@ -39,8 +39,8 @@ No single cue is reliable. Scored together they are, because they fail in differ
 
 When the target disappears, the right response depends on *why* they disappeared, and the robot cannot know which it is. So it tries the cheapest explanation first:
 
-1. **BACKUP** — they are probably still nearby and just too close to the camera, or briefly occluded. Backing up widens the field of view. Cheap and fast.
-2. **SCAN** — they probably walked out of frame. Rotate toward the last observed direction of motion.
+1. **WAIT** — they probably walked out of frame. wait for a little bit.
+2. **BACKUP** — they are probably still nearby and just too close to the camera, or briefly occluded. Backing up widens the field of view. Cheap and fast.
 3. **FRONTIER** — they have actually left. Use Nav2 to drive to unexplored frontiers and look.
 
 Each stage costs more time and risk than the last, so escalating in order means the common cases resolve quickly. Re-acquisition at any stage requires a signature match, not just any person detection — otherwise recovery would happily lock onto a stranger.
