@@ -166,8 +166,6 @@ docs/                    build notes and design decisions
 
 Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`, `torchreid`, `opencv-python`, `mediapipe`.
 
-> **Note on the full workspace.** This repo contains our own code plus patches, so it stays small and readable. The complete 1.9 GB workspace — every dependency, Gazebo worlds, build artifacts and raw test footage exactly as it ran — is attached as an archive to the [GitHub Release](../../releases).
-
 ---
 
 ## Two prototypes
