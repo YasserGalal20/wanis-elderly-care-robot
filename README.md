@@ -198,9 +198,9 @@ Requires ROS 2 Jazzy on Ubuntu 24.04 (Python 3.12), plus `ultralytics`, `torch`,
 | | Prototype 1 | Prototype 2 (final) |
 |---|---|---|
 | Drive | Small DC motors, Arduino bridge | Hoverboard motors, FOC firmware, `ros2_control` |
-| Perception | MediaPipe pose + DeepLabV3 | YOLO11-seg + BoT-SORT + OSNet ReID |
+| Perception | MediaPipe pose + DeepLabV3 | YOLO26 + BoT-SORT + OSNet ReID |
 | Identity | None — followed nearest person | Full four-cue signature lock |
-| Recovery | Rotate toward last motion | Four-stage ladder incl. frontier search |
+| Recovery | Rotate toward last motion | Three-stage ladder incl. frontier search |
 | Compute | Pi + server split | Pi + server split |
 
 | The first prototype | Hardware |
