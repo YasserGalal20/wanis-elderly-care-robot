@@ -59,14 +59,9 @@ Two things that mattered more than expected:
 
 **Scale forward speed by heading error, do not gate it.** The obvious approach — "if heading error is large, stop and rotate" — makes the robot stutter between rotating and driving. Continuously scaling forward speed by heading error makes it arc smoothly toward the target instead.
 
-**Hysteresis on the rotate-only threshold.** With a single threshold the robot chatters right at the boundary. Separate enter/exit thresholds fix it.
-
-Also standard, and worth having: D-on-measurement rather than D-on-error (no derivative kick when the setpoint jumps), anti-windup, integral leak on sign flip, output low-pass and slew-rate limiting.
-
 ## Known limitations
 
 - **Re-identification degrades if the person changes clothes.** The ReID embedding carries some of it, but colour cues dominate the score. A longer-term signature would need face or gait cues.
 - **Depth is Kinect-based**, so bright sunlight through a window degrades it.
 - **Frontier recovery assumes a reasonable map.** In an unmapped area it explores rather than searches.
-- **The safety guard uses a rectangular footprint**, which is conservative for a roughly circular robot — it stops slightly earlier than strictly necessary. That was the intended trade.
 - **Clock sync is a hard dependency.** If the Pi and server drift, TF breaks in ways that look like perception bugs.
